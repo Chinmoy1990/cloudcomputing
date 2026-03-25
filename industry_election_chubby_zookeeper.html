@@ -1,0 +1,269 @@
+
+<style>
+* { box-sizing: border-box; }
+.wrap { padding: 1rem 0; font-family: var(--font-sans); }
+.tabs { display: flex; gap: 8px; margin-bottom: 1.5rem; }
+.tab { padding: 7px 18px; font-size: 13px; font-weight: 500; border: 0.5px solid var(--color-border-secondary); border-radius: var(--border-radius-md); background: var(--color-background-primary); color: var(--color-text-secondary); cursor: pointer; }
+.tab.active { background: #185FA5; color: #E6F1FB; border-color: #185FA5; }
+.controls { display: flex; gap: 8px; margin-bottom: 1rem; flex-wrap: wrap; }
+.btn { padding: 6px 14px; font-size: 13px; border: 0.5px solid var(--color-border-secondary); border-radius: var(--border-radius-md); background: var(--color-background-primary); color: var(--color-text-primary); cursor: pointer; }
+.btn:hover { background: var(--color-background-secondary); }
+.btn.go { background: #185FA5; color: #E6F1FB; border-color: #185FA5; }
+.btn.go:hover { background: #0C447C; }
+.info-box { background: var(--color-background-secondary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); padding: 10px 14px; font-size: 13px; color: var(--color-text-primary); min-height: 44px; margin-bottom: 1rem; line-height: 1.5; }
+.step-num { font-size: 12px; color: var(--color-text-secondary); margin-bottom: 6px; }
+.panel { display: none; }
+.panel.active { display: block; }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 1rem; }
+.li { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--color-text-secondary); }
+.ld { width: 10px; height: 10px; border-radius: 50%; }
+</style>
+
+<div class="wrap">
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('chubby',this)">Google Chubby</button>
+    <button class="tab" onclick="switchTab('zk',this)">Apache ZooKeeper</button>
+  </div>
+
+  <!-- CHUBBY PANEL -->
+  <div id="panel-chubby" class="panel active">
+    <div class="controls">
+      <button class="btn go" onclick="cPrev()">← Prev</button>
+      <button class="btn go" onclick="cNext()">Next →</button>
+      <button class="btn" onclick="cReset()">Reset</button>
+    </div>
+    <div class="step-num" id="c-stepnum">Step 0 / 5</div>
+    <div class="info-box" id="c-info">5 servers hain: A, B, C, D, E. Majority = 3 votes chahiye leader banne ke liye.</div>
+    <div class="legend">
+      <div class="li"><div class="ld" style="background:#378ADD"></div> Normal</div>
+      <div class="li"><div class="ld" style="background:#E24B4A"></div> Crashed</div>
+      <div class="li"><div class="ld" style="background:#EF9F27"></div> Voting</div>
+      <div class="li"><div class="ld" style="background:#639922"></div> Leader</div>
+    </div>
+    <svg id="c-svg" viewBox="0 0 500 280" style="width:100%;max-width:500px;display:block;margin:0 auto;">
+      <defs>
+        <marker id="vArr" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto">
+          <path d="M0,0 L0,6 L7,3 z" fill="#BA7517"/>
+        </marker>
+      </defs>
+      <!-- 5 nodes in pentagon: A(top-center), B(top-right), C(bot-right), D(bot-left), E(top-left) -->
+      <!-- A=250,50  B=420,130  C=360,240  D=140,240  E=80,130 -->
+      <g id="cg-A"><circle cx="250" cy="55" r="30" fill="#E6F1FB" stroke="#378ADD" stroke-width="1.5" id="cc-A"/><text x="250" y="51" text-anchor="middle" font-size="13" font-weight="500" fill="#0C447C" id="ct1-A">A</text><text x="250" y="65" text-anchor="middle" font-size="10" fill="#185FA5" id="ct2-A">server</text></g>
+      <g id="cg-B"><circle cx="420" cy="135" r="30" fill="#E6F1FB" stroke="#378ADD" stroke-width="1.5" id="cc-B"/><text x="420" y="131" text-anchor="middle" font-size="13" font-weight="500" fill="#0C447C" id="ct1-B">B</text><text x="420" y="145" text-anchor="middle" font-size="10" fill="#185FA5" id="ct2-B">server</text></g>
+      <g id="cg-C"><circle cx="360" cy="240" r="30" fill="#E6F1FB" stroke="#378ADD" stroke-width="1.5" id="cc-C"/><text x="360" y="236" text-anchor="middle" font-size="13" font-weight="500" fill="#0C447C" id="ct1-C">C</text><text x="360" y="250" text-anchor="middle" font-size="10" fill="#185FA5" id="ct2-C">server</text></g>
+      <g id="cg-D"><circle cx="140" cy="240" r="30" fill="#E6F1FB" stroke="#378ADD" stroke-width="1.5" id="cc-D"/><text x="140" y="236" text-anchor="middle" font-size="13" font-weight="500" fill="#0C447C" id="ct1-D">D</text><text x="140" y="250" text-anchor="middle" font-size="10" fill="#185FA5" id="ct2-D">server</text></g>
+      <g id="cg-E"><circle cx="80" cy="135" r="30" fill="#E6F1FB" stroke="#378ADD" stroke-width="1.5" id="cc-E"/><text x="80" y="131" text-anchor="middle" font-size="13" font-weight="500" fill="#0C447C" id="ct1-E">E</text><text x="80" y="145" text-anchor="middle" font-size="10" fill="#185FA5" id="ct2-E">server</text></g>
+
+      <!-- vote arrows (3 of them) -->
+      <line id="cv1" x1="0" y1="0" x2="0" y2="0" stroke="#BA7517" stroke-width="1.8" marker-end="url(#vArr)" opacity="0"/>
+      <rect id="cv1bg" x="0" y="0" width="36" height="16" rx="3" fill="#FAEEDA" opacity="0"/>
+      <text id="cv1lbl" x="0" y="0" text-anchor="middle" font-size="10" fill="#854F0B" opacity="0">vote</text>
+
+      <line id="cv2" x1="0" y1="0" x2="0" y2="0" stroke="#BA7517" stroke-width="1.8" marker-end="url(#vArr)" opacity="0"/>
+      <rect id="cv2bg" x="0" y="0" width="36" height="16" rx="3" fill="#FAEEDA" opacity="0"/>
+      <text id="cv2lbl" x="0" y="0" text-anchor="middle" font-size="10" fill="#854F0B" opacity="0">vote</text>
+
+      <line id="cv3" x1="0" y1="0" x2="0" y2="0" stroke="#BA7517" stroke-width="1.8" marker-end="url(#vArr)" opacity="0"/>
+      <rect id="cv3bg" x="0" y="0" width="36" height="16" rx="3" fill="#FAEEDA" opacity="0"/>
+      <text id="cv3lbl" x="0" y="0" text-anchor="middle" font-size="10" fill="#854F0B" opacity="0">vote</text>
+
+      <!-- majority badge -->
+      <rect id="c-badge" x="175" y="110" width="150" height="36" rx="6" fill="#EAF3DE" opacity="0"/>
+      <text id="c-badge-t" x="250" y="133" text-anchor="middle" font-size="13" font-weight="500" fill="#27500A" opacity="0">Majority! (3/5) Leader = C</text>
+    </svg>
+  </div>
+
+  <!-- ZOOKEEPER PANEL -->
+  <div id="panel-zk" class="panel">
+    <div class="controls">
+      <button class="btn go" onclick="zPrev()">← Prev</button>
+      <button class="btn go" onclick="zNext()">Next →</button>
+      <button class="btn" onclick="zReset()">Reset</button>
+    </div>
+    <div class="step-num" id="z-stepnum">Step 0 / 6</div>
+    <div class="info-box" id="z-info">ZooKeeper mein 5 servers hain ring mein. Har server sirf apne next-higher ID wale ko monitor karta hai.</div>
+    <div class="legend">
+      <div class="li"><div class="ld" style="background:#378ADD"></div> Normal</div>
+      <div class="li"><div class="ld" style="background:#E24B4A"></div> Crashed</div>
+      <div class="li"><div class="ld" style="background:#7F77DD"></div> Monitoring</div>
+      <div class="li"><div class="ld" style="background:#639922"></div> Leader</div>
+    </div>
+    <svg id="z-svg" viewBox="0 0 500 300" style="width:100%;max-width:500px;display:block;margin:0 auto;">
+      <defs>
+        <marker id="mArr" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto">
+          <path d="M0,0 L0,6 L7,3 z" fill="#7F77DD"/>
+        </marker>
+        <marker id="gArr" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto">
+          <path d="M0,0 L0,6 L7,3 z" fill="#3B6D11"/>
+        </marker>
+      </defs>
+      <!-- Ring: Z1=id1(x80,y150), Z2=id2(x190,y60), Z3=id3(x320,y60), Z4=id4(x420,y150), Z5=id5(x250,y250) -->
+      <!-- clockwise order by id: Z1->Z2->Z3->Z4->Z5->Z1 (monitor next higher) -->
+      <!-- Z1 monitors Z2, Z2 monitors Z3, Z3 monitors Z4, Z4 monitors Z5, Z5 monitors Z1? No — "next higher id" -->
+      <!-- ids: N1=1,N2=2,N3=3,N4=4,N5=5. N5 is leader. Each monitors next higher: N1->N2, N2->N3, N3->N4, N4->N5 -->
+      <!-- positions: N1=left, N2=top-left, N3=top-right, N4=right, N5=bottom-center -->
+      <!-- N1=x70,y150  N2=x190,y60  N3=x310,y60  N4=x430,y150  N5=x250,y250 -->
+
+      <!-- nodes -->
+      <g id="zg-N1"><circle cx="70" cy="150" r="28" fill="#E6F1FB" stroke="#378ADD" stroke-width="1.5" id="zc-N1"/><text x="70" y="146" text-anchor="middle" font-size="12" font-weight="500" fill="#0C447C" id="zt1-N1">N1</text><text x="70" y="159" text-anchor="middle" font-size="10" fill="#185FA5" id="zt2-N1">id=1</text></g>
+      <g id="zg-N2"><circle cx="190" cy="65" r="28" fill="#E6F1FB" stroke="#378ADD" stroke-width="1.5" id="zc-N2"/><text x="190" y="61" text-anchor="middle" font-size="12" font-weight="500" fill="#0C447C" id="zt1-N2">N2</text><text x="190" y="74" text-anchor="middle" font-size="10" fill="#185FA5" id="zt2-N2">id=2</text></g>
+      <g id="zg-N3"><circle cx="310" cy="65" r="28" fill="#E6F1FB" stroke="#378ADD" stroke-width="1.5" id="zc-N3"/><text x="310" y="61" text-anchor="middle" font-size="12" font-weight="500" fill="#0C447C" id="zt1-N3">N3</text><text x="310" y="74" text-anchor="middle" font-size="10" fill="#185FA5" id="zt2-N3">id=3</text></g>
+      <g id="zg-N4"><circle cx="430" cy="150" r="28" fill="#E6F1FB" stroke="#378ADD" stroke-width="1.5" id="zc-N4"/><text x="430" y="146" text-anchor="middle" font-size="12" font-weight="500" fill="#0C447C" id="zt1-N4">N4</text><text x="430" y="159" text-anchor="middle" font-size="10" fill="#185FA5" id="zt2-N4">id=4</text></g>
+      <g id="zg-N5"><circle cx="250" cy="255" r="28" fill="#EAF3DE" stroke="#3B6D11" stroke-width="2" id="zc-N5"/><text x="250" y="251" text-anchor="middle" font-size="12" font-weight="500" fill="#173404" id="zt1-N5">N5</text><text x="250" y="264" text-anchor="middle" font-size="10" fill="#3B6D11" id="zt2-N5">leader</text></g>
+
+      <!-- monitor arrows (dashed, shown in step 0) -->
+      <line id="zm-N1" x1="98" y1="140" x2="162" y2="80" stroke="#AFA9EC" stroke-width="1.2" stroke-dasharray="4,3" opacity="1"/>
+      <line id="zm-N2" x1="218" y1="65" x2="282" y2="65" stroke="#AFA9EC" stroke-width="1.2" stroke-dasharray="4,3" opacity="1"/>
+      <line id="zm-N3" x1="338" y1="75" x2="402" y2="135" stroke="#AFA9EC" stroke-width="1.2" stroke-dasharray="4,3" opacity="1"/>
+      <line id="zm-N4" x1="420" y1="178" x2="278" y2="235" stroke="#AFA9EC" stroke-width="1.2" stroke-dasharray="4,3" opacity="1"/>
+
+      <!-- action arrow (solid, shown per step) -->
+      <line id="z-act" x1="0" y1="0" x2="0" y2="0" stroke="#3B6D11" stroke-width="2" marker-end="url(#gArr)" opacity="0"/>
+      <rect id="z-actbg" x="0" y="0" width="60" height="18" rx="3" fill="#EAF3DE" opacity="0"/>
+      <text id="z-actlbl" x="0" y="0" text-anchor="middle" font-size="10" fill="#27500A" opacity="0">elected!</text>
+    </svg>
+  </div>
+</div>
+
+<script>
+const cNodes = {A:{cx:250,cy:55}, B:{cx:420,cy:135}, C:{cx:360,cy:240}, D:{cx:140,cy:240}, E:{cx:80,cy:135}};
+
+const cSteps = [
+  { info:"5 servers hain: A, B, C, D, E. Majority = 3 votes chahiye leader banne ke liye.",
+    nodes:{A:'normal',B:'normal',C:'normal',D:'normal',E:'normal'}, votes:[], badge:null },
+  { info:"Purana leader fail ho gaya. Server C khud ko candidate ghoshit karta hai aur votes maangta hai.",
+    nodes:{A:'normal',B:'normal',C:'voting',D:'normal',E:'normal'}, votes:[], badge:null },
+  { info:"A vote karta hai C ko.",
+    nodes:{A:'voting',B:'normal',C:'voting',D:'normal',E:'normal'},
+    votes:[{from:'A',to:'C'}], badge:null },
+  { info:"B bhi vote karta hai C ko. Ab C ke paas 2 votes.",
+    nodes:{A:'voting',B:'voting',C:'voting',D:'normal',E:'normal'},
+    votes:[{from:'A',to:'C'},{from:'B',to:'C'}], badge:null },
+  { info:"D bhi vote karta hai C ko. Ab C ke paas 3 votes — MAJORITY! (3 out of 5)",
+    nodes:{A:'voting',B:'voting',C:'voting',D:'voting',E:'normal'},
+    votes:[{from:'A',to:'C'},{from:'B',to:'C'},{from:'D',to:'C'}], badge:null },
+  { info:"C leader ban gaya! Sabko inform karta hai. Safety: koi bhi do majority sets mein ek common server hoga — isliye ek waqt mein sirf EK leader possible!",
+    nodes:{A:'normal',B:'normal',C:'leader',D:'normal',E:'normal'},
+    votes:[], badge:"Majority! (3/5) Leader = C" }
+];
+
+let cCur = 0;
+
+function cNodeStyle(s) {
+  if(s==='crashed') return {fill:'#FCEBEB',stroke:'#E24B4A',t1:'#A32D2D',t2:'#E24B4A'};
+  if(s==='voting')  return {fill:'#FAEEDA',stroke:'#BA7517',t1:'#412402',t2:'#854F0B'};
+  if(s==='leader')  return {fill:'#C0DD97',stroke:'#3B6D11',t1:'#173404',t2:'#3B6D11'};
+  return {fill:'#E6F1FB',stroke:'#378ADD',t1:'#0C447C',t2:'#185FA5'};
+}
+
+function hideVotes() {
+  for(let i=1;i<=3;i++){
+    ['cv'+i,'cv'+i+'bg','cv'+i+'lbl'].forEach(id=>{
+      const el=document.getElementById(id); if(el) el.setAttribute('opacity','0');
+    });
+  }
+}
+
+function drawVote(idx,from,to) {
+  const f=cNodes[from], t=cNodes[to];
+  const dx=t.cx-f.cx, dy=t.cy-f.cy, dist=Math.sqrt(dx*dx+dy*dy);
+  const ux=dx/dist, uy=dy/dist;
+  const x1=f.cx+ux*32, y1=f.cy+uy*32, x2=t.cx-ux*35, y2=t.cy-uy*35;
+  const l=document.getElementById('cv'+(idx+1));
+  l.setAttribute('x1',x1);l.setAttribute('y1',y1);l.setAttribute('x2',x2);l.setAttribute('y2',y2);l.setAttribute('opacity','1');
+  const mx=(x1+x2)/2, my=(y1+y2)/2;
+  const bg=document.getElementById('cv'+(idx+1)+'bg');
+  bg.setAttribute('x',mx-18);bg.setAttribute('y',my-12);bg.setAttribute('opacity','1');
+  const lbl=document.getElementById('cv'+(idx+1)+'lbl');
+  lbl.setAttribute('x',mx);lbl.setAttribute('y',my);lbl.setAttribute('opacity','1');
+}
+
+function applyCStep(s) {
+  hideVotes();
+  ['A','B','C','D','E'].forEach(n=>{
+    const st=cNodeStyle(s.nodes[n]);
+    document.getElementById('cc-'+n).setAttribute('fill',st.fill);
+    document.getElementById('cc-'+n).setAttribute('stroke',st.stroke);
+    document.getElementById('ct1-'+n).setAttribute('fill',st.t1);
+    document.getElementById('ct2-'+n).setAttribute('fill',st.t2);
+  });
+  s.votes.forEach((v,i)=>{ if(i<3) drawVote(i,v.from,v.to); });
+  const badge=document.getElementById('c-badge'), badgeT=document.getElementById('c-badge-t');
+  if(s.badge){badge.setAttribute('opacity','1');badgeT.setAttribute('opacity','1');badgeT.textContent=s.badge;}
+  else{badge.setAttribute('opacity','0');badgeT.setAttribute('opacity','0');}
+  document.getElementById('c-info').textContent=s.info;
+  document.getElementById('c-stepnum').textContent='Step '+cCur+' / '+(cSteps.length-1);
+}
+
+function cNext(){if(cCur<cSteps.length-1)cCur++;applyCStep(cSteps[cCur]);}
+function cPrev(){if(cCur>0)cCur--;applyCStep(cSteps[cCur]);}
+function cReset(){cCur=0;applyCStep(cSteps[0]);}
+
+const zNodePos = {N1:{cx:70,cy:150},N2:{cx:190,cy:65},N3:{cx:310,cy:65},N4:{cx:430,cy:150},N5:{cx:250,cy:255}};
+
+const zSteps = [
+  { info:"Normal state: N5 leader hai. Har node apne next-higher ID ko monitor karta hai (dashed arrows). N4 monitors N5.",
+    nodes:{N1:'normal',N2:'normal',N3:'normal',N4:'monitor',N5:'leader'}, act:null },
+  { info:"N5 crash ho gaya! N4 detect karta hai — 'Mera successor (N5) jo leader tha, woh fail ho gaya!'",
+    nodes:{N1:'normal',N2:'normal',N3:'normal',N4:'monitor',N5:'crashed'}, act:null },
+  { info:"N4 directly leader ban jaata hai — koyi flood of elections nahi! Seedha promote.",
+    nodes:{N1:'normal',N2:'normal',N3:'normal',N4:'leader',N5:'crashed'}, act:{from:'N4',to:'N1',label:'elected!'} },
+  { info:"N4 sabko batata hai ki main naya leader hoon. Sab update kar lete hain.",
+    nodes:{N1:'normal',N2:'normal',N3:'normal',N4:'leader',N5:'crashed'}, act:{from:'N4',to:'N2',label:'elected!'} },
+  { info:"Option 1 (bad) mein: sab N5 monitor karte — ek saath saare elections start karte, message flood hota. Option 2 (ZK): sirf N4 ne detect kiya — efficient!",
+    nodes:{N1:'normal',N2:'normal',N3:'normal',N4:'leader',N5:'crashed'}, act:null },
+  { info:"Final state: N4 naya leader. Baaki sab monitor chain shift ho gayi — N3 ab N4 ko monitor karega.",
+    nodes:{N1:'normal',N2:'normal',N3:'monitor',N4:'leader',N5:'crashed'}, act:null }
+];
+
+let zCur = 0;
+
+function zNodeStyle(s) {
+  if(s==='crashed') return {fill:'#FCEBEB',stroke:'#E24B4A',t1:'#A32D2D',t2:'#E24B4A'};
+  if(s==='monitor') return {fill:'#EEEDFE',stroke:'#7F77DD',t1:'#26215C',t2:'#534AB7'};
+  if(s==='leader')  return {fill:'#C0DD97',stroke:'#3B6D11',t1:'#173404',t2:'#3B6D11'};
+  return {fill:'#E6F1FB',stroke:'#378ADD',t1:'#0C447C',t2:'#185FA5'};
+}
+
+function applyZStep(s) {
+  ['N1','N2','N3','N4','N5'].forEach(n=>{
+    const st=zNodeStyle(s.nodes[n]);
+    document.getElementById('zc-'+n).setAttribute('fill',st.fill);
+    document.getElementById('zc-'+n).setAttribute('stroke',st.stroke);
+    document.getElementById('zt1-'+n).setAttribute('fill',st.t1);
+    document.getElementById('zt2-'+n).setAttribute('fill',st.t2);
+    const lbl = n==='N5' && s.nodes['N5']==='leader' ? 'leader' : (n==='N4' && s.nodes['N4']==='leader' ? 'leader' : 'id='+n.replace('N',''));
+    document.getElementById('zt2-'+n).textContent = lbl;
+  });
+  const act=document.getElementById('z-act'), actbg=document.getElementById('z-actbg'), actlbl=document.getElementById('z-actlbl');
+  if(s.act){
+    const f=zNodePos[s.act.from], t=zNodePos[s.act.to];
+    const dx=t.cx-f.cx, dy=t.cy-f.cy, dist=Math.sqrt(dx*dx+dy*dy);
+    const ux=dx/dist, uy=dy/dist;
+    act.setAttribute('x1',f.cx+ux*30);act.setAttribute('y1',f.cy+uy*30);
+    act.setAttribute('x2',t.cx-ux*32);act.setAttribute('y2',t.cy-uy*32);
+    act.setAttribute('opacity','1');
+    const mx=(f.cx+t.cx)/2, my=(f.cy+t.cy)/2;
+    actbg.setAttribute('x',mx-30);actbg.setAttribute('y',my-12);actbg.setAttribute('opacity','1');
+    actlbl.setAttribute('x',mx);actlbl.setAttribute('y',my);actlbl.textContent=s.act.label;actlbl.setAttribute('opacity','1');
+  } else {
+    act.setAttribute('opacity','0');actbg.setAttribute('opacity','0');actlbl.setAttribute('opacity','0');
+  }
+  document.getElementById('z-info').textContent=s.info;
+  document.getElementById('z-stepnum').textContent='Step '+zCur+' / '+(zSteps.length-1);
+}
+
+function zNext(){if(zCur<zSteps.length-1)zCur++;applyZStep(zSteps[zCur]);}
+function zPrev(){if(zCur>0)zCur--;applyZStep(zSteps[zCur]);}
+function zReset(){zCur=0;applyZStep(zSteps[0]);}
+
+function switchTab(tab, el) {
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('panel-'+tab).classList.add('active');
+}
+
+applyCStep(cSteps[0]);
+applyZStep(zSteps[0]);
+</script>
