@@ -1,0 +1,222 @@
+
+<style>
+  .ring-container { padding: 1rem 0; font-family: var(--font-sans); }
+  .controls { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 1.5rem; align-items: center; }
+  .btn { padding: 6px 14px; font-size: 13px; border: 0.5px solid var(--color-border-secondary); border-radius: var(--border-radius-md); background: var(--color-background-primary); color: var(--color-text-primary); cursor: pointer; }
+  .btn:hover { background: var(--color-background-secondary); }
+  .btn.primary { background: #185FA5; color: #E6F1FB; border-color: #185FA5; }
+  .btn.primary:hover { background: #0C447C; }
+  .step-info { background: var(--color-background-secondary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); padding: 10px 14px; font-size: 13px; color: var(--color-text-primary); margin-bottom: 1rem; min-height: 42px; }
+  .step-counter { font-size: 12px; color: var(--color-text-secondary); margin-bottom: 1rem; }
+  svg text { font-family: var(--font-sans); }
+</style>
+
+<div class="ring-container">
+  <div class="controls">
+    <button class="btn primary" onclick="prevStep()">← Prev</button>
+    <button class="btn primary" onclick="nextStep()">Next →</button>
+    <button class="btn" onclick="resetAnim()">Reset</button>
+  </div>
+  <div class="step-counter" id="stepCounter">Step 0 / 13</div>
+  <div class="step-info" id="stepInfo">N3 ne notice kiya — leader fail ho gaya! Election shuru karo.</div>
+  <svg id="ringsvg" viewBox="0 0 500 420" style="width:100%; max-width:500px; display:block; margin: 0 auto;">
+    <defs>
+      <marker id="arrowBlue" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+        <path d="M0,0 L0,6 L8,3 z" fill="#378ADD"/>
+      </marker>
+      <marker id="arrowGold" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+        <path d="M0,0 L0,6 L8,3 z" fill="#BA7517"/>
+      </marker>
+    </defs>
+
+    <!-- Ring background circle -->
+    <circle cx="250" cy="210" r="140" fill="none" stroke="#D3D1C7" stroke-width="1" stroke-dasharray="4,4"/>
+
+    <!-- Node positions: N3(top), N32(top-right), N5(bottom-right), N80(bottom), N6(bottom-left), N12(top-left) -->
+    <!-- Clockwise: N3 -> N32 -> N5 -> N80 -> N6 -> N12 -> N3 -->
+
+    <!-- Nodes -->
+    <g id="node-N3">
+      <circle cx="250" cy="70" r="28" fill="#E6F1FB" stroke="#378ADD" stroke-width="1.5"/>
+      <text x="250" y="66" text-anchor="middle" font-size="13" font-weight="500" fill="#0C447C">N3</text>
+      <text x="250" y="80" text-anchor="middle" font-size="10" fill="#185FA5">id=3</text>
+    </g>
+    <g id="node-N32">
+      <circle cx="390" cy="130" r="28" fill="#E6F1FB" stroke="#378ADD" stroke-width="1.5"/>
+      <text x="390" y="126" text-anchor="middle" font-size="13" font-weight="500" fill="#0C447C">N32</text>
+      <text x="390" y="140" text-anchor="middle" font-size="10" fill="#185FA5">id=32</text>
+    </g>
+    <g id="node-N5">
+      <circle cx="390" cy="290" r="28" fill="#E6F1FB" stroke="#378ADD" stroke-width="1.5"/>
+      <text x="390" y="286" text-anchor="middle" font-size="13" font-weight="500" fill="#0C447C">N5</text>
+      <text x="390" y="300" text-anchor="middle" font-size="10" fill="#185FA5">id=5</text>
+    </g>
+    <g id="node-N80">
+      <circle cx="250" cy="350" r="28" fill="#E6F1FB" stroke="#378ADD" stroke-width="1.5"/>
+      <text x="250" y="346" text-anchor="middle" font-size="13" font-weight="500" fill="#0C447C">N80</text>
+      <text x="250" y="360" text-anchor="middle" font-size="10" fill="#185FA5">id=80</text>
+    </g>
+    <g id="node-N6">
+      <circle cx="110" cy="290" r="28" fill="#E6F1FB" stroke="#378ADD" stroke-width="1.5"/>
+      <text x="110" y="286" text-anchor="middle" font-size="13" font-weight="500" fill="#0C447C">N6</text>
+      <text x="110" y="300" text-anchor="middle" font-size="10" fill="#185FA5">id=6</text>
+    </g>
+    <g id="node-N12">
+      <circle cx="110" cy="130" r="28" fill="#E6F1FB" stroke="#378ADD" stroke-width="1.5"/>
+      <text x="110" y="126" text-anchor="middle" font-size="13" font-weight="500" fill="#0C447C">N12</text>
+      <text x="110" y="140" text-anchor="middle" font-size="10" fill="#185FA5">id=12</text>
+    </g>
+
+    <!-- Message arrow (hidden initially) -->
+    <line id="msgArrow" x1="0" y1="0" x2="0" y2="0" stroke="#378ADD" stroke-width="2" marker-end="url(#arrowBlue)" opacity="0"/>
+
+    <!-- Message label -->
+    <rect id="msgBg" x="0" y="0" width="80" height="22" rx="4" fill="#E6F1FB" opacity="0"/>
+    <text id="msgLabel" x="0" y="0" text-anchor="middle" font-size="11" font-weight="500" fill="#185FA5" opacity="0">Election:3</text>
+
+    <!-- Elected badge on N80 -->
+    <rect id="electedBadge" x="210" y="384" width="80" height="20" rx="4" fill="#EAF3DE" opacity="0"/>
+    <text id="electedText" x="250" y="398" text-anchor="middle" font-size="11" font-weight="500" fill="#3B6D11" opacity="0">Leader!</text>
+  </svg>
+</div>
+
+<script>
+const nodes = {
+  'N3':  {cx:250, cy:70},
+  'N32': {cx:390, cy:130},
+  'N5':  {cx:390, cy:290},
+  'N80': {cx:250, cy:350},
+  'N6':  {cx:110, cy:290},
+  'N12': {cx:110, cy:130}
+};
+const order = ['N3','N32','N5','N80','N6','N12'];
+
+const steps = [
+  { from: null, to: null, msg: null, active: 'N3', phase: 'election',
+    info: 'N3 ne notice kiya — purana leader fail ho gaya. Election shuru!' },
+  { from: 'N3', to: 'N32', msg: 'Election:3', active: 'N3', phase: 'election',
+    info: 'N3 apna id=3 bhejta hai N32 ko — "Election: 3"' },
+  { from: 'N32', to: 'N5', msg: 'Election:32', active: 'N32', phase: 'election',
+    info: 'N32 socha: 32 > 3, main better hoon! Apna id bhejta hai — "Election: 32"' },
+  { from: 'N5', to: 'N80', msg: 'Election:32', active: 'N5', phase: 'election',
+    info: 'N5 socha: 5 < 32, yeh mujhse better hai. Forward karo — "Election: 32"' },
+  { from: 'N80', to: 'N6', msg: 'Election:80', active: 'N80', phase: 'election',
+    info: 'N80 socha: 80 > 32, main best hoon! Apna id bhejta hai — "Election: 80"' },
+  { from: 'N6', to: 'N12', msg: 'Election:80', active: 'N6', phase: 'election',
+    info: 'N6 socha: 6 < 80, yeh mujhse better hai. Forward karo — "Election: 80"' },
+  { from: 'N12', to: 'N3', msg: 'Election:80', active: 'N12', phase: 'election',
+    info: 'N12 socha: 12 < 80. Forward karo — "Election: 80"' },
+  { from: 'N3', to: 'N32', msg: 'Election:80', active: 'N3', phase: 'election',
+    info: 'N3 socha: 3 < 80. Forward karo — "Election: 80"' },
+  { from: 'N32', to: 'N5', msg: 'Election:80', active: 'N32', phase: 'election',
+    info: 'N32 socha: 32 < 80. Forward karo — "Election: 80"' },
+  { from: 'N5', to: 'N80', msg: 'Election:80', active: 'N5', phase: 'election',
+    info: 'N5 socha: 5 < 80. Forward karo — "Election: 80"' },
+  { from: 'N80', to: 'N6', msg: 'Elected:80', active: 'N80', phase: 'elected',
+    info: 'N80 ko apna hi id=80 mila wapas! Main hi leader hoon. "Elected: 80" bhejta hoon!' },
+  { from: 'N6', to: 'N12', msg: 'Elected:80', active: 'N6', phase: 'elected',
+    info: 'N6 ne elected=80 set kiya. Forward karo "Elected: 80"' },
+  { from: 'N12', to: 'N3', msg: 'Elected:80', active: 'N12', phase: 'elected',
+    info: 'N12 ne elected=80 set kiya. Forward karo.' },
+  { from: 'N3', to: null, msg: null, active: null, phase: 'done',
+    info: 'N3 ne bhi elected=80 set kiya. Algorithm complete! N80 is the leader.' }
+];
+
+let currentStep = 0;
+
+function applyStep(s) {
+  const svg = document.getElementById('ringsvg');
+  order.forEach(n => {
+    const g = document.getElementById('node-' + n);
+    const circle = g.querySelector('circle');
+    const texts = g.querySelectorAll('text');
+    circle.setAttribute('fill', '#E6F1FB');
+    circle.setAttribute('stroke', '#378ADD');
+    circle.setAttribute('stroke-width', '1.5');
+    texts[0].setAttribute('fill', '#0C447C');
+  });
+
+  const arrow = document.getElementById('msgArrow');
+  const msgBg = document.getElementById('msgBg');
+  const msgLabel = document.getElementById('msgLabel');
+  const electedBadge = document.getElementById('electedBadge');
+  const electedText = document.getElementById('electedText');
+
+  if (s.active) {
+    const g = document.getElementById('node-' + s.active);
+    const circle = g.querySelector('circle');
+    if (s.phase === 'elected' || s.phase === 'done') {
+      circle.setAttribute('fill', '#C0DD97');
+      circle.setAttribute('stroke', '#3B6D11');
+      g.querySelectorAll('text')[0].setAttribute('fill', '#27500A');
+    } else {
+      circle.setAttribute('fill', '#B5D4F4');
+      circle.setAttribute('stroke', '#185FA5');
+      circle.setAttribute('stroke-width', '2.5');
+    }
+  }
+
+  if (s.phase === 'done' || currentStep >= 10) {
+    const g80 = document.getElementById('node-N80');
+    g80.querySelector('circle').setAttribute('fill', '#C0DD97');
+    g80.querySelector('circle').setAttribute('stroke', '#3B6D11');
+    g80.querySelector('circle').setAttribute('stroke-width', '2.5');
+    g80.querySelectorAll('text')[0].setAttribute('fill', '#27500A');
+  }
+
+  if (s.from && s.to && s.msg) {
+    const f = nodes[s.from], t = nodes[s.to];
+    const dx = t.cx - f.cx, dy = t.cy - f.cy;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+    const ux = dx/dist, uy = dy/dist;
+    const x1 = f.cx + ux*30, y1 = f.cy + uy*30;
+    const x2 = t.cx - ux*34, y2 = t.cy - uy*34;
+    arrow.setAttribute('x1', x1); arrow.setAttribute('y1', y1);
+    arrow.setAttribute('x2', x2); arrow.setAttribute('y2', y2);
+    const isElected = s.phase === 'elected';
+    arrow.setAttribute('stroke', isElected ? '#BA7517' : '#378ADD');
+    arrow.setAttribute('marker-end', isElected ? 'url(#arrowGold)' : 'url(#arrowBlue)');
+    arrow.setAttribute('opacity', '1');
+
+    const mx = (x1+x2)/2, my = (y1+y2)/2;
+    const labelW = s.msg.length * 7 + 12;
+    msgBg.setAttribute('x', mx - labelW/2); msgBg.setAttribute('y', my - 14);
+    msgBg.setAttribute('width', labelW);
+    msgBg.setAttribute('fill', isElected ? '#FAEEDA' : '#E6F1FB');
+    msgBg.setAttribute('opacity', '1');
+    msgLabel.setAttribute('x', mx); msgLabel.setAttribute('y', my);
+    msgLabel.setAttribute('fill', isElected ? '#BA7517' : '#185FA5');
+    msgLabel.textContent = s.msg;
+    msgLabel.setAttribute('opacity', '1');
+  } else {
+    arrow.setAttribute('opacity', '0');
+    msgBg.setAttribute('opacity', '0');
+    msgLabel.setAttribute('opacity', '0');
+  }
+
+  if (s.phase === 'done') {
+    electedBadge.setAttribute('opacity', '1');
+    electedText.setAttribute('opacity', '1');
+  } else {
+    electedBadge.setAttribute('opacity', '0');
+    electedText.setAttribute('opacity', '0');
+  }
+
+  document.getElementById('stepInfo').textContent = s.info;
+  document.getElementById('stepCounter').textContent = 'Step ' + currentStep + ' / ' + (steps.length - 1);
+}
+
+function nextStep() {
+  if (currentStep < steps.length - 1) currentStep++;
+  applyStep(steps[currentStep]);
+}
+function prevStep() {
+  if (currentStep > 0) currentStep--;
+  applyStep(steps[currentStep]);
+}
+function resetAnim() {
+  currentStep = 0;
+  applyStep(steps[0]);
+}
+applyStep(steps[0]);
+</script>
