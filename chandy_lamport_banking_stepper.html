@@ -1,0 +1,160 @@
+
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  .step-nav { display: flex; gap: 8px; align-items: center; margin: 0 0 1rem; flex-wrap: wrap; }
+  .step-btn { font-size: 13px; padding: 6px 14px; border-radius: var(--border-radius-md); cursor: pointer; background: transparent; border: 0.5px solid var(--color-border-secondary); color: var(--color-text-primary); transition: background .15s, transform .1s; }
+  .step-btn:hover { background: var(--color-background-secondary); }
+  .step-btn:active { transform: scale(0.98); }
+  .step-btn.active { background: var(--color-background-info); color: var(--color-text-info); border-color: var(--color-border-info); }
+  .stage { display: none; }
+  .stage.visible { display: block; }
+  .desc { font-size: 14px; color: var(--color-text-secondary); line-height: 1.6; margin: 0 0 1rem; }
+  .desc strong { color: var(--color-text-primary); font-weight: 500; }
+  .snapshot-box { background: var(--color-background-secondary); border-radius: var(--border-radius-lg); padding: 1rem 1.25rem; margin-top: 12px; }
+  .snapshot-row { display: flex; justify-content: space-between; font-size: 13px; padding: 4px 0; color: var(--color-text-secondary); }
+  .snapshot-row span:last-child { font-weight: 500; color: var(--color-text-primary); }
+  .total-row { border-top: 0.5px solid var(--color-border-tertiary); margin-top: 6px; padding-top: 8px; font-weight: 500; color: var(--color-text-info); font-size: 14px; display: flex; justify-content: space-between; }
+  .pill { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: var(--border-radius-md); font-weight: 500; margin-left: 6px; }
+  .pill-marker { background: var(--color-background-warning); color: var(--color-text-warning); }
+  .pill-record { background: var(--color-background-success); color: var(--color-text-success); }
+  .pill-money { background: var(--color-background-info); color: var(--color-text-info); }
+</style>
+
+<div class="step-nav" id="nav"></div>
+<div id="stages"></div>
+
+<script>
+const steps = [
+  {
+    label: "t0: Initial",
+    desc: `<strong>Initial state:</strong> S1 ka account A = <strong>$600</strong>, S2 ka account B = <strong>$200</strong>. Total system mein = $800. Abhi koi transfer nahi hua.`,
+    svg: { a: 600, b: 200, c12: null, c21: null, marker12: false, marker21: false, msg12: null, msg21: null, s1Rec: false, s2Rec: false },
+    snapshot: null
+  },
+  {
+    label: "t1: S1→S2 $50",
+    desc: `S1 ne S2 ko <strong>$50</strong> bheja. <span class="pill pill-money">$50</span> ab channel C12 mein travel kar raha hai. A = $550 ho gaya, B abhi bhi $200 hai (abhi receive nahi hua).`,
+    svg: { a: 550, b: 200, c12: null, c21: null, marker12: false, marker21: false, msg12: "$50", msg21: null, s1Rec: false, s2Rec: false },
+    snapshot: null
+  },
+  {
+    label: "t2: S2→S1 $80",
+    desc: `S2 ne S1 ko <strong>$80</strong> bheja. <span class="pill pill-money">$80</span> ab channel C21 mein travel kar raha hai. B = $120 ho gaya. Dono transfers abhi in-flight hain.`,
+    svg: { a: 550, b: 120, c12: null, c21: null, marker12: false, marker21: false, msg12: "$50", msg21: "$80", s1Rec: false, s2Rec: false },
+    snapshot: null
+  },
+  {
+    label: "Snapshot: S1 records",
+    desc: `<strong>S1 snapshot shuru karta hai!</strong> <span class="pill pill-record">Record</span> S1 apna state record karta hai: A = <strong>$550</strong>. Phir S2 ko <span class="pill pill-marker">MARKER</span> bhejta hai channel C12 pe. Note: $50 wala message MARKER se pehle bheja tha, toh woh MARKER se pehle pahunchega.`,
+    svg: { a: 550, b: 120, c12: null, c21: null, marker12: true, marker21: false, msg12: "$50", msg21: "$80", s1Rec: true, s2Rec: false },
+    snapshot: { a: "$550", b: "?", c12: "?", c21: "recording...", total: "?" }
+  },
+  {
+    label: "Snapshot: S2 receives MARKER",
+    desc: `S2 ko channel C12 pe <span class="pill pill-marker">MARKER</span> milta hai. S2 ne abhi tak apna state record nahi kiya tha → <span class="pill pill-record">Record</span> B = <strong>$120</strong>. Channel C12 ka state = <strong>empty</strong> (kyunki $50 pehle aa chuka tha, MARKER ke saath koi message nahi tha). S2 ab S1 ko MARKER bhejta hai C21 pe.`,
+    svg: { a: 550, b: 120, c12: "∅", c21: null, marker12: false, marker21: true, msg12: null, msg21: "$80", s1Rec: true, s2Rec: true },
+    snapshot: { a: "$550", b: "$120", c12: "∅ (empty)", c21: "recording...", total: "?" }
+  },
+  {
+    label: "Snapshot: S1 receives MARKER",
+    desc: `S1 ko channel C21 pe <span class="pill pill-marker">MARKER</span> milta hai. S1 ne pehle se state record kar liya tha → Channel C21 ka state = jo messages aaye state record karne ke baad se MARKER aane tak. Woh hai <strong>$80</strong>! Final snapshot complete.`,
+    svg: { a: 550, b: 120, c12: "∅", c21: "$80", marker12: false, marker21: false, msg12: null, msg21: null, s1Rec: true, s2Rec: true },
+    snapshot: { a: "$550", b: "$120", c12: "∅ (empty)", c21: "$80", total: "$800 ✓" }
+  }
+];
+
+const nav = document.getElementById('nav');
+const stagesEl = document.getElementById('stages');
+let current = 0;
+
+function drawSVG(s) {
+  const mw = 680, mh = 240;
+  const s1x = 80, s2x = 480, sy = 90, bw = 120, bh = 80;
+  let svg = `<svg width="100%" viewBox="0 0 ${mw} ${mh}" xmlns="http://www.w3.org/2000/svg">`;
+  svg += `<defs><marker id="a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>`;
+
+  // S1 box
+  const s1c = s.s1Rec ? 'c-green' : 'c-blue';
+  svg += `<g class="${s1c}"><rect x="${s1x}" y="${sy}" width="${bw}" height="${bh}" rx="8" stroke-width="0.5"/>`;
+  svg += `<text class="th" x="${s1x+bw/2}" y="${sy+28}" text-anchor="middle" dominant-baseline="central">S1</text>`;
+  svg += `<text class="ts" x="${s1x+bw/2}" y="${sy+52}" text-anchor="middle" dominant-baseline="central">A = $${s.a}</text></g>`;
+
+  // S2 box
+  const s2c = s.s2Rec ? 'c-green' : 'c-blue';
+  svg += `<g class="${s2c}"><rect x="${s2x}" y="${sy}" width="${bw}" height="${bh}" rx="8" stroke-width="0.5"/>`;
+  svg += `<text class="th" x="${s2x+bw/2}" y="${sy+28}" text-anchor="middle" dominant-baseline="central">S2</text>`;
+  svg += `<text class="ts" x="${s2x+bw/2}" y="${sy+52}" text-anchor="middle" dominant-baseline="central">B = $${s.b}</text></g>`;
+
+  // Channel labels
+  svg += `<text class="ts" x="340" y="78" text-anchor="middle">C12 (S1 → S2)</text>`;
+  svg += `<text class="ts" x="340" y="192" text-anchor="middle">C21 (S2 → S1)</text>`;
+
+  // C12 arrow line
+  svg += `<line x1="${s1x+bw}" y1="${sy+20}" x2="${s2x}" y2="${sy+20}" stroke="var(--color-border-secondary)" stroke-width="0.5" marker-end="url(#a)"/>`;
+  // C21 arrow line
+  svg += `<line x1="${s2x}" y1="${sy+60}" x2="${s1x+bw}" y2="${sy+60}" stroke="var(--color-border-secondary)" stroke-width="0.5" marker-end="url(#a)"/>`;
+
+  // Messages on C12
+  if (s.msg12) {
+    svg += `<g class="c-amber"><rect x="280" y="${sy+4}" width="56" height="24" rx="6" stroke-width="0.5"/>`;
+    svg += `<text class="ts" x="308" y="${sy+16}" text-anchor="middle" dominant-baseline="central">${s.msg12}</text></g>`;
+  }
+  if (s.marker12) {
+    svg += `<g class="c-coral"><rect x="360" y="${sy+4}" width="60" height="24" rx="6" stroke-width="0.5"/>`;
+    svg += `<text class="ts" x="390" y="${sy+16}" text-anchor="middle" dominant-baseline="central">MARKER</text></g>`;
+  }
+
+  // Messages on C21
+  if (s.msg21) {
+    svg += `<g class="c-amber"><rect x="300" y="${sy+44}" width="56" height="24" rx="6" stroke-width="0.5"/>`;
+    svg += `<text class="ts" x="328" y="${sy+56}" text-anchor="middle" dominant-baseline="central">${s.msg21}</text></g>`;
+  }
+  if (s.marker21) {
+    svg += `<g class="c-coral"><rect x="220" y="${sy+44}" width="60" height="24" rx="6" stroke-width="0.5"/>`;
+    svg += `<text class="ts" x="250" y="${sy+56}" text-anchor="middle" dominant-baseline="central">MARKER</text></g>`;
+  }
+
+  // Recorded state badges
+  if (s.s1Rec) {
+    svg += `<text class="ts" x="${s1x+bw/2}" y="${sy-12}" text-anchor="middle" fill="#1D9E75">recorded</text>`;
+  }
+  if (s.s2Rec) {
+    svg += `<text class="ts" x="${s2x+bw/2}" y="${sy-12}" text-anchor="middle" fill="#1D9E75">recorded</text>`;
+  }
+
+  svg += `</svg>`;
+  return svg;
+}
+
+steps.forEach((step, i) => {
+  const btn = document.createElement('button');
+  btn.className = 'step-btn' + (i === 0 ? ' active' : '');
+  btn.textContent = (i + 1);
+  btn.title = step.label;
+  btn.onclick = () => goTo(i);
+  nav.appendChild(btn);
+
+  const div = document.createElement('div');
+  div.className = 'stage' + (i === 0 ? ' visible' : '');
+  let html = `<p class="desc">${step.desc}</p>`;
+  html += drawSVG(step.svg);
+  if (step.snapshot) {
+    html += `<div class="snapshot-box">`;
+    html += `<div style="font-size:13px;font-weight:500;color:var(--color-text-primary);margin-bottom:8px">Recorded snapshot</div>`;
+    html += `<div class="snapshot-row"><span>A (S1)</span><span>${step.snapshot.a}</span></div>`;
+    html += `<div class="snapshot-row"><span>B (S2)</span><span>${step.snapshot.b}</span></div>`;
+    html += `<div class="snapshot-row"><span>C12</span><span>${step.snapshot.c12}</span></div>`;
+    html += `<div class="snapshot-row"><span>C21</span><span>${step.snapshot.c21}</span></div>`;
+    html += `<div class="total-row"><span>Total</span><span>${step.snapshot.total}</span></div>`;
+    html += `</div>`;
+  }
+  div.innerHTML = html;
+  stagesEl.appendChild(div);
+});
+
+function goTo(i) {
+  current = i;
+  document.querySelectorAll('.step-btn').forEach((b, j) => b.classList.toggle('active', j === i));
+  document.querySelectorAll('.stage').forEach((s, j) => s.classList.toggle('visible', j === i));
+}
+</script>
